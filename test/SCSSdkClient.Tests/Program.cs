@@ -63,6 +63,13 @@ namespace SCSSdkClient.Tests {
             AssertEqual(JobType.Freight, freightTelemetry.SpecialEventsValues.ActiveJobType, "freight job type");
             AssertEqual((uint)300, freightTelemetry.JobValues.DeliveryTime.Value, "freight job does not inherit car job values");
 
+            var legacyData = new byte[MapSize];
+            WriteLegacyCarJobValues(legacyData);
+            WriteExtensionZone(legacyData, JobType.None);
+            var legacyTelemetry = new SCSSdkConvert().Convert(legacyData);
+            AssertTrue(legacyTelemetry.SpecialEventsValues.OnJob, "legacy job on job");
+            AssertEqual(JobType.Freight, legacyTelemetry.SpecialEventsValues.ActiveJobType, "legacy job type fallback");
+
             var emptyData = new byte[MapSize];
             WriteExtensionZone(emptyData, JobType.Car);
             WriteOnJob(emptyData, false);

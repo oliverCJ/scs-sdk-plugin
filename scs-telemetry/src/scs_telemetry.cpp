@@ -1256,6 +1256,8 @@ SCSAPI_VOID scs_telemetry_shutdown() {
   telem_ptr->scs_values.telemetry_version_game_minor = 0;
   telem_ptr->scs_values.version_major = 0;
   telem_ptr->scs_values.version_minor = 0;
+  telem_ptr->special_b.onJob = false;
+  telem_ptr->extension_job.activeJobType = active_job_none;
 
   telem_ptr->time = 0;
   telem_ptr->simulatedTime = 0;

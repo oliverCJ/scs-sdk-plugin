@@ -661,14 +661,21 @@ namespace SCSSdkClient {
             retData.GamePlay.CarJobCancelled.Penalty = GetLong();
             retData.GamePlay.CarJobDelivered.Revenue = GetLong();
             var activeJobType = GetUint().ToEnum<JobType>();
-            retData.SpecialEventsValues.ActiveJobType = retData.SpecialEventsValues.OnJob
-                ? activeJobType
-                : JobType.None;
+            retData.SpecialEventsValues.ActiveJobType = GetActiveJobType(
+                retData.SpecialEventsValues.OnJob, activeJobType);
 
             if (retData.SpecialEventsValues.OnJob &&
                 retData.SpecialEventsValues.ActiveJobType == JobType.Car) {
                 ApplyCarJobValuesToJob(retData);
             }
+        }
+
+        private static JobType GetActiveJobType(bool onJob, JobType activeJobType) {
+            if (!onJob) {
+                return JobType.None;
+            }
+
+            return activeJobType == JobType.Car ? JobType.Car : JobType.Freight;
         }
 
         private static void ApplyCarJobValuesToJob(SCSTelemetry retData) {
