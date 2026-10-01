@@ -50,6 +50,8 @@ namespace SCSSdkClient {
         private bool wasOnJob;
         private bool cancelled;
         private bool delivered;
+        private bool carJobCancelled;
+        private bool carJobDelivered;
         private bool fined;
         private bool tollgate;
         private bool ferry;
@@ -79,6 +81,10 @@ namespace SCSSdkClient {
         public event EventHandler JobCancelled;
 
         public event EventHandler JobDelivered;
+
+        public event EventHandler CarJobCancelled;
+
+        public event EventHandler CarJobDelivered;
 
         public event EventHandler Fined;
 
@@ -202,6 +208,28 @@ namespace SCSSdkClient {
                 }
 
                 JobDelivered?.Invoke(this, new EventArgs());
+            }
+
+            if (carJobCancelled != scsTelemetry.SpecialEventsValues.CarJobCancelled) {
+                carJobCancelled = scsTelemetry.SpecialEventsValues.CarJobCancelled;
+
+                if (!updated) {
+                    Data?.Invoke(scsTelemetry, true);
+                    updated = true;
+                }
+
+                CarJobCancelled?.Invoke(this, new EventArgs());
+            }
+
+            if (carJobDelivered != scsTelemetry.SpecialEventsValues.CarJobDelivered) {
+                carJobDelivered = scsTelemetry.SpecialEventsValues.CarJobDelivered;
+
+                if (!updated) {
+                    Data?.Invoke(scsTelemetry, true);
+                    updated = true;
+                }
+
+                CarJobDelivered?.Invoke(this, new EventArgs());
             }
 
             if (fined != scsTelemetry.SpecialEventsValues.Fined) {

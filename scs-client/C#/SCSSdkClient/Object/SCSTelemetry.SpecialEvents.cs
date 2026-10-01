@@ -12,6 +12,11 @@ namespace SCSSdkClient.Object {
             public bool OnJob { get; internal set; }
 
             /// <summary>
+            ///     Type of the active job when OnJob is true.
+            /// </summary>
+            public JobType ActiveJobType { get; internal set; }
+
+            /// <summary>
             ///     Event flag that displays (for some ticks) that a job was finished, doesn't matter how (cancelled, delivered, ...)
             ///     Deprecated for Version 1.35 of both games. Use JobCancelled and JobDelivered Event for version starting with 1.35+
             ///     But should still work
@@ -20,6 +25,8 @@ namespace SCSSdkClient.Object {
 
             public bool JobCancelled { get; internal set; }
             public bool JobDelivered { get; internal set; }
+            public bool CarJobCancelled { get; internal set; }
+            public bool CarJobDelivered { get; internal set; }
             public bool Fined { get; internal set; }
             public bool Tollgate { get; internal set; }
             public bool Ferry { get; internal set; }

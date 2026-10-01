@@ -11,9 +11,11 @@ namespace SCSSdkClient {
         private const int StringSize = 64;
         private const int WheelSize = 16;
         private const int Substances = 25;
+        private const int LegacyTrailerZoneOffset = 6000;
+        private const int ExtendedZoneOffset = 21600;
 
         private readonly int[] _offsetAreas =
-            {0, 40, 500, 700, 1500, 1640, 2000, 2200, 2300, 4000, 4200, 4300, 4400, 6000};
+            {0, 40, 500, 700, 1500, 1640, 2000, 2200, 2300, 4000, 4200, 4300, 4400, LegacyTrailerZoneOffset};
 
         private byte[] _data;
         private int _offset;
@@ -310,6 +312,7 @@ namespace SCSSdkClient {
             retData.TruckValues.ConstantsValues.LicensePlateCountry = GetString();
 
             var tempJobMarket = GetString(32);
+            retData.JobValues.MarketName = tempJobMarket;
             if (tempJobMarket?.Length > 0) {
                 retData.JobValues.Market = tempJobMarket.ToEnum<JobMarket>();
             }
@@ -390,6 +393,8 @@ namespace SCSSdkClient {
             retData.TrailerValues = GetTrailers();
 
             #endregion 14TH ZONE
+
+            ReadExtensionZone(retData);
 
             currentlyActive = false;
 
@@ -606,6 +611,106 @@ namespace SCSSdkClient {
             }
 
             return trailer;
+        }
+
+        private void ReadExtensionZone(SCSTelemetry retData) {
+            _offset = ExtendedZoneOffset;
+
+            retData.CommonValues.NextMandatoryBreak = GetInt();
+            retData.GamePlay.CarJobDelivered.EarnedXp = GetInt();
+
+            retData.CarJobValues.DeliveryTime = GetUint();
+            retData.CarJobValues.CargoValues.UnitCount = GetUint();
+            retData.CarJobValues.PlannedDistanceKm = GetUint();
+            retData.GamePlay.CarJobDelivered.DeliveryTime = GetUint();
+            var carJobStartingTime = new SCSTelemetry.Time(GetUint());
+            retData.GamePlay.CarJobCancelled.Started = carJobStartingTime;
+            retData.GamePlay.CarJobDelivered.Started = carJobStartingTime;
+            var carJobFinishingTime = new SCSTelemetry.Time(GetUint());
+            retData.GamePlay.CarJobCancelled.Finished = carJobFinishingTime;
+            retData.GamePlay.CarJobDelivered.Finished = carJobFinishingTime;
+
+            retData.CarJobValues.CargoValues.Mass = GetFloat();
+            retData.CarJobValues.CargoValues.UnitMass = GetFloat();
+            retData.CarJobValues.CargoValues.CargoDamage = GetFloat();
+            retData.GamePlay.CarJobDelivered.CargoDamage = GetFloat();
+            retData.GamePlay.CarJobDelivered.VehicleDamage = GetFloat();
+            retData.GamePlay.CarJobDelivered.DistanceKm = GetFloat();
+
+            retData.CarJobValues.CargoLoaded = GetBool();
+            retData.CarJobValues.CustomerPrioCargoHandling = GetBool();
+            retData.CarJobValues.CustomerPrioTime = GetBool();
+            retData.CarJobValues.CustomerPrioVehicleAppearance = GetBool();
+            retData.SpecialEventsValues.CarJobCancelled = GetBool();
+            retData.SpecialEventsValues.CarJobDelivered = GetBool();
+
+            retData.CarJobValues.CargoValues.Id = GetString();
+            retData.CarJobValues.CargoValues.Name = GetString();
+            retData.CarJobValues.CityDestinationId = GetString();
+            retData.CarJobValues.CityDestination = GetString();
+            retData.CarJobValues.CompanyDestinationId = GetString();
+            retData.CarJobValues.CompanyDestination = GetString();
+            retData.CarJobValues.CitySourceId = GetString();
+            retData.CarJobValues.CitySource = GetString();
+            retData.CarJobValues.CompanySourceId = GetString();
+            retData.CarJobValues.CompanySource = GetString();
+            retData.CarJobValues.Market = GetString(32);
+
+            AlignOffset(8);
+            retData.CarJobValues.Income = GetULong();
+            retData.GamePlay.CarJobCancelled.Penalty = GetLong();
+            retData.GamePlay.CarJobDelivered.Revenue = GetLong();
+            var activeJobType = GetUint().ToEnum<JobType>();
+            retData.SpecialEventsValues.ActiveJobType = retData.SpecialEventsValues.OnJob
+                ? activeJobType
+                : JobType.None;
+
+            if (retData.SpecialEventsValues.OnJob &&
+                retData.SpecialEventsValues.ActiveJobType == JobType.Car) {
+                ApplyCarJobValuesToJob(retData);
+            }
+        }
+
+        private static void ApplyCarJobValuesToJob(SCSTelemetry retData) {
+            var source = retData.CarJobValues;
+            var target = retData.JobValues;
+
+            // The game exposes only one active job type at a time, so JobValues is the unified job API.
+            target.DeliveryTime = source.DeliveryTime;
+            if (retData.CommonValues.GameTime.Value > 0 && retData.CommonValues.GameTime.Value < 4000000000 && source.DeliveryTime.Value > 0) {
+                target.RemainingDeliveryTime = (int)(source.DeliveryTime.Value - retData.CommonValues.GameTime.Value);
+            } else {
+                target.RemainingDeliveryTime = 0;
+            }
+
+            target.CargoLoaded = source.CargoLoaded;
+            target.CustomerPrioCargoHandling = source.CustomerPrioCargoHandling;
+            target.CustomerPrioTime = source.CustomerPrioTime;
+            target.CustomerPrioVehicleAppearance = source.CustomerPrioVehicleAppearance;
+            target.MarketName = source.Market;
+            target.PlannedDistanceKm = source.PlannedDistanceKm;
+            target.Income = source.Income;
+            target.CityDestinationId = source.CityDestinationId;
+            target.CityDestination = source.CityDestination;
+            target.CompanyDestinationId = source.CompanyDestinationId;
+            target.CompanyDestination = source.CompanyDestination;
+            target.CitySourceId = source.CitySourceId;
+            target.CitySource = source.CitySource;
+            target.CompanySourceId = source.CompanySourceId;
+            target.CompanySource = source.CompanySource;
+
+            target.CargoValues.Mass = source.CargoValues.Mass;
+            target.CargoValues.Id = source.CargoValues.Id;
+            target.CargoValues.Name = source.CargoValues.Name;
+            target.CargoValues.UnitCount = source.CargoValues.UnitCount;
+            target.CargoValues.UnitMass = source.CargoValues.UnitMass;
+            target.CargoValues.CargoDamage = source.CargoValues.CargoDamage;
+        }
+
+        private void AlignOffset(int size) {
+            while (_offset % size != 0) {
+                _offset++;
+            }
         }
 
         private uint GetUint() {
