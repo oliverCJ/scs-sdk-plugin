@@ -5,7 +5,7 @@ namespace SCSSdkClient.Object {
         /// <summary>
         ///     Car job values. Income, destination, source, cargo, and customer priorities.
         /// </summary>
-        public class CarJob {
+        internal class CarJob {
             public CarJob() {
                 DeliveryTime = new Time();
                 RemainingDeliveryTime = new Frequency();

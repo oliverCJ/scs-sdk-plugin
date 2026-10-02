@@ -23,6 +23,11 @@ namespace SCSSdkClient {
         private int _offsetArea;
 
         private bool currentlyActive = false;
+        private bool hasJobEventState;
+        private bool lastJobDelivered;
+        private bool lastCarJobDelivered;
+        private bool lastDeliveredWasCarJob;
+        private float lastCarJobVehicleDamage;
 
         /// <summary>
         ///     Convert the Shared Memory Byte data structure in a C# object
@@ -394,7 +399,7 @@ namespace SCSSdkClient {
 
             #endregion 14TH ZONE
 
-            ReadExtensionZone(retData);
+            ReadExtensionZone(retData, new SCSTelemetry.CarJob());
 
             currentlyActive = false;
 
@@ -613,61 +618,89 @@ namespace SCSSdkClient {
             return trailer;
         }
 
-        private void ReadExtensionZone(SCSTelemetry retData) {
+        private void ReadExtensionZone(SCSTelemetry retData, SCSTelemetry.CarJob carJobValues) {
             _offset = ExtendedZoneOffset;
 
             retData.CommonValues.NextMandatoryBreak = GetInt();
-            retData.GamePlay.CarJobDelivered.EarnedXp = GetInt();
+            GetInt();
 
-            retData.CarJobValues.DeliveryTime = GetUint();
-            retData.CarJobValues.CargoValues.UnitCount = GetUint();
-            retData.CarJobValues.PlannedDistanceKm = GetUint();
-            retData.GamePlay.CarJobDelivered.DeliveryTime = GetUint();
-            var carJobStartingTime = new SCSTelemetry.Time(GetUint());
-            retData.GamePlay.CarJobCancelled.Started = carJobStartingTime;
-            retData.GamePlay.CarJobDelivered.Started = carJobStartingTime;
-            var carJobFinishingTime = new SCSTelemetry.Time(GetUint());
-            retData.GamePlay.CarJobCancelled.Finished = carJobFinishingTime;
-            retData.GamePlay.CarJobDelivered.Finished = carJobFinishingTime;
+            carJobValues.DeliveryTime = GetUint();
+            carJobValues.CargoValues.UnitCount = GetUint();
+            carJobValues.PlannedDistanceKm = GetUint();
+            GetUint();
+            GetUint();
+            GetUint();
 
-            retData.CarJobValues.CargoValues.Mass = GetFloat();
-            retData.CarJobValues.CargoValues.UnitMass = GetFloat();
-            retData.CarJobValues.CargoValues.CargoDamage = GetFloat();
-            retData.GamePlay.CarJobDelivered.CargoDamage = GetFloat();
-            retData.GamePlay.CarJobDelivered.VehicleDamage = GetFloat();
-            retData.GamePlay.CarJobDelivered.DistanceKm = GetFloat();
+            carJobValues.CargoValues.Mass = GetFloat();
+            carJobValues.CargoValues.UnitMass = GetFloat();
+            carJobValues.CargoValues.CargoDamage = GetFloat();
+            GetFloat();
+            var carJobDeliveredVehicleDamage = GetFloat();
+            GetFloat();
 
-            retData.CarJobValues.CargoLoaded = GetBool();
-            retData.CarJobValues.CustomerPrioCargoHandling = GetBool();
-            retData.CarJobValues.CustomerPrioTime = GetBool();
-            retData.CarJobValues.CustomerPrioVehicleAppearance = GetBool();
-            retData.SpecialEventsValues.CarJobCancelled = GetBool();
-            retData.SpecialEventsValues.CarJobDelivered = GetBool();
+            carJobValues.CargoLoaded = GetBool();
+            carJobValues.CustomerPrioCargoHandling = GetBool();
+            carJobValues.CustomerPrioTime = GetBool();
+            carJobValues.CustomerPrioVehicleAppearance = GetBool();
+            GetBool();
+            var carJobDelivered = GetBool();
 
-            retData.CarJobValues.CargoValues.Id = GetString();
-            retData.CarJobValues.CargoValues.Name = GetString();
-            retData.CarJobValues.CityDestinationId = GetString();
-            retData.CarJobValues.CityDestination = GetString();
-            retData.CarJobValues.CompanyDestinationId = GetString();
-            retData.CarJobValues.CompanyDestination = GetString();
-            retData.CarJobValues.CitySourceId = GetString();
-            retData.CarJobValues.CitySource = GetString();
-            retData.CarJobValues.CompanySourceId = GetString();
-            retData.CarJobValues.CompanySource = GetString();
-            retData.CarJobValues.Market = GetString(32);
+            carJobValues.CargoValues.Id = GetString();
+            carJobValues.CargoValues.Name = GetString();
+            carJobValues.CityDestinationId = GetString();
+            carJobValues.CityDestination = GetString();
+            carJobValues.CompanyDestinationId = GetString();
+            carJobValues.CompanyDestination = GetString();
+            carJobValues.CitySourceId = GetString();
+            carJobValues.CitySource = GetString();
+            carJobValues.CompanySourceId = GetString();
+            carJobValues.CompanySource = GetString();
+            carJobValues.Market = GetString(32);
 
             AlignOffset(8);
-            retData.CarJobValues.Income = GetULong();
-            retData.GamePlay.CarJobCancelled.Penalty = GetLong();
-            retData.GamePlay.CarJobDelivered.Revenue = GetLong();
+            carJobValues.Income = GetULong();
+            GetLong();
+            GetLong();
             var activeJobType = GetUint().ToEnum<JobType>();
             retData.SpecialEventsValues.ActiveJobType = GetActiveJobType(
                 retData.SpecialEventsValues.OnJob, activeJobType);
 
             if (retData.SpecialEventsValues.OnJob &&
                 retData.SpecialEventsValues.ActiveJobType == JobType.Car) {
-                ApplyCarJobValuesToJob(retData);
+                ApplyCarJobValuesToJob(retData, carJobValues);
             }
+
+            // vehicle.damage has no field in the legacy gameplay zone, so keep it in the
+            // converter state and expose it through the unified delivered event object.
+            ApplyCarJobVehicleDamage(retData, carJobDelivered, carJobDeliveredVehicleDamage);
+        }
+
+        private void ApplyCarJobVehicleDamage(
+            SCSTelemetry retData,
+            bool carJobDelivered,
+            float carJobDeliveredVehicleDamage) {
+            var jobDeliveredChanged = !hasJobEventState ||
+                retData.SpecialEventsValues.JobDelivered != lastJobDelivered;
+            var carJobDeliveredChanged = !hasJobEventState ||
+                carJobDelivered != lastCarJobDelivered;
+
+            if (!hasJobEventState) {
+                lastDeliveredWasCarJob = carJobDelivered;
+                lastCarJobVehicleDamage = carJobDeliveredVehicleDamage;
+            } else if (carJobDeliveredChanged) {
+                lastDeliveredWasCarJob = true;
+                lastCarJobVehicleDamage = carJobDeliveredVehicleDamage;
+            } else if (jobDeliveredChanged) {
+                lastDeliveredWasCarJob = false;
+            }
+
+            if (lastDeliveredWasCarJob) {
+                retData.GamePlay.JobDelivered.VehicleDamage = lastCarJobVehicleDamage;
+            }
+
+            hasJobEventState = true;
+            lastJobDelivered = retData.SpecialEventsValues.JobDelivered;
+            lastCarJobDelivered = carJobDelivered;
         }
 
         private static JobType GetActiveJobType(bool onJob, JobType activeJobType) {
@@ -678,8 +711,9 @@ namespace SCSSdkClient {
             return activeJobType == JobType.Car ? JobType.Car : JobType.Freight;
         }
 
-        private static void ApplyCarJobValuesToJob(SCSTelemetry retData) {
-            var source = retData.CarJobValues;
+        private static void ApplyCarJobValuesToJob(
+            SCSTelemetry retData,
+            SCSTelemetry.CarJob source) {
             var target = retData.JobValues;
 
             // The game exposes only one active job type at a time, so JobValues is the unified job API.

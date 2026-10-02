@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using SCSSdkClient;
+using SCSSdkClient.Object;
 
 namespace SCSSdkClient.Tests {
     internal static class Program {
@@ -9,49 +10,57 @@ namespace SCSSdkClient.Tests {
         private const int StringSize = 64;
 
         private static int Main() {
+            AssertTrue(typeof(SCSTelemetry).GetProperty("CarJobValues") == null,
+                "car job values is not public");
+            AssertTrue(typeof(SCSTelemetry.GamePlayEvents).GetField("CarJobCancelled") == null,
+                "car job cancelled gameplay object is not public");
+            AssertTrue(typeof(SCSTelemetry.GamePlayEvents).GetField("CarJobDelivered") == null,
+                "car job delivered gameplay object is not public");
+            AssertTrue(typeof(SCSTelemetry.SpecialEvents).GetProperty("CarJobCancelled") == null,
+                "car job cancelled special event is not public");
+            AssertTrue(typeof(SCSTelemetry.SpecialEvents).GetProperty("CarJobDelivered") == null,
+                "car job delivered special event is not public");
+            AssertTrue(typeof(SCSSdkTelemetry).GetEvent("CarJobCancelled") == null,
+                "car job cancelled event is not public");
+            AssertTrue(typeof(SCSSdkTelemetry).GetEvent("CarJobDelivered") == null,
+                "car job delivered event is not public");
+
             var data = new byte[MapSize];
             WriteLegacyCarJobValues(data);
             WriteExtensionZone(data, JobType.Car);
 
-            var telemetry = new SCSSdkConvert().Convert(data);
+            var converter = new SCSSdkConvert();
+            var telemetry = converter.Convert(data);
 
             AssertEqual(45, telemetry.CommonValues.NextMandatoryBreak.Value, "mandatory break");
             AssertTrue(telemetry.SpecialEventsValues.OnJob, "car job on job");
             AssertEqual(JobType.Car, telemetry.SpecialEventsValues.ActiveJobType, "active job type");
-            AssertEqual((uint)620, telemetry.CarJobValues.DeliveryTime.Value, "car job delivery time");
             AssertEqual((uint)620, telemetry.JobValues.DeliveryTime.Value, "unified job delivery time");
-            AssertEqual((uint)620, telemetry.GamePlay.JobDelivered.DeliveryTime.Value, "legacy job delivery time");
-            AssertEqual((uint)2, telemetry.CarJobValues.CargoValues.UnitCount, "car job unit count");
+            AssertEqual((uint)77, telemetry.GamePlay.JobDelivered.DeliveryTime.Value, "unified job delivered time");
             AssertEqual((uint)2, telemetry.JobValues.CargoValues.UnitCount, "unified job unit count");
-            AssertEqual((uint)815, telemetry.CarJobValues.PlannedDistanceKm, "car job planned distance");
             AssertEqual((uint)815, telemetry.JobValues.PlannedDistanceKm, "unified job planned distance");
-            AssertEqual(1234, telemetry.GamePlay.CarJobDelivered.EarnedXp, "car job earned xp");
             AssertEqual(1234, telemetry.GamePlay.JobDelivered.EarnedXp, "legacy job earned xp");
-            AssertEqual((uint)100, telemetry.GamePlay.CarJobCancelled.Started.Value, "car job cancelled started");
-            AssertEqual((uint)177, telemetry.GamePlay.CarJobDelivered.Finished.Value, "car job delivered finished");
-            AssertEqual(12.5f, telemetry.CarJobValues.CargoValues.Mass, "car job cargo mass");
-            AssertEqual(3.75f, telemetry.CarJobValues.CargoValues.UnitMass, "car job unit mass");
-            AssertEqual(0.12f, telemetry.CarJobValues.CargoValues.CargoDamage, "car job cargo damage");
+            AssertEqual((uint)100, telemetry.GamePlay.JobCancelled.Started.Value, "unified job cancelled started");
+            AssertEqual((uint)177, telemetry.GamePlay.JobDelivered.Finished.Value, "unified job delivered finished");
             AssertEqual(0.12f, telemetry.JobValues.CargoValues.CargoDamage, "unified job cargo damage");
-            AssertEqual(0.34f, telemetry.GamePlay.CarJobDelivered.VehicleDamage, "car job vehicle damage");
-            AssertEqual(0.12f, telemetry.GamePlay.JobDelivered.CargoDamage, "legacy job cargo damage");
-            AssertEqual(550.0f, telemetry.GamePlay.JobDelivered.DistanceKm, "legacy job distance");
-            AssertEqual("quick_job", telemetry.CarJobValues.Market, "car job market");
+            AssertEqual(0.34f, telemetry.GamePlay.JobDelivered.VehicleDamage, "unified job vehicle damage");
+            AssertEqual(0.22f, telemetry.GamePlay.JobDelivered.CargoDamage, "unified job delivered cargo damage");
+            AssertEqual(550.0f, telemetry.GamePlay.JobDelivered.DistanceKm, "unified job delivered distance");
             AssertEqual("quick_job", telemetry.JobValues.MarketName, "unified job market name");
-            AssertEqual("cars", telemetry.CarJobValues.CargoValues.Id, "car job cargo id");
             AssertEqual("cars", telemetry.JobValues.CargoValues.Id, "unified job cargo id");
-            AssertEqual(9000UL, telemetry.CarJobValues.Income, "car job income");
             AssertEqual(9000UL, telemetry.JobValues.Income, "unified job income");
-            AssertEqual(-500L, telemetry.GamePlay.CarJobCancelled.Penalty, "car job cancel penalty");
-            AssertEqual(8700L, telemetry.GamePlay.CarJobDelivered.Revenue, "car job revenue");
             AssertEqual(-500L, telemetry.GamePlay.JobCancelled.Penalty, "legacy job cancel penalty");
             AssertEqual(8700L, telemetry.GamePlay.JobDelivered.Revenue, "legacy job revenue");
-            AssertTrue(telemetry.CarJobValues.CustomerPrioTime, "car job customer time priority");
             AssertTrue(telemetry.JobValues.CustomerPrioTime, "unified job customer time priority");
-            AssertTrue(telemetry.SpecialEventsValues.CarJobCancelled, "car job cancelled flag");
-            AssertTrue(telemetry.SpecialEventsValues.CarJobDelivered, "car job delivered flag");
             AssertTrue(telemetry.SpecialEventsValues.JobCancelled, "legacy job cancelled flag");
             AssertTrue(telemetry.SpecialEventsValues.JobDelivered, "legacy job delivered flag");
+
+            var ordinaryDeliveryData = (byte[])data.Clone();
+            WriteOnJob(ordinaryDeliveryData, false);
+            ordinaryDeliveryData[4303] = 0;
+            var ordinaryDeliveryTelemetry = converter.Convert(ordinaryDeliveryData);
+            AssertEqual(0.0f, ordinaryDeliveryTelemetry.GamePlay.JobDelivered.VehicleDamage,
+                "ordinary job does not inherit car vehicle damage");
 
             var freightData = new byte[MapSize];
             WriteExtensionZone(freightData, JobType.Freight);
@@ -135,7 +144,7 @@ namespace SCSSdkClient.Tests {
             offset = 100;
             WriteUInt(data, ref offset, 815);
             offset = 440;
-            WriteUInt(data, ref offset, 620);
+            WriteUInt(data, ref offset, 77);
             offset = 444;
             WriteUInt(data, ref offset, 100);
             offset = 448;
@@ -149,7 +158,7 @@ namespace SCSSdkClient.Tests {
             offset = 944;
             WriteFloat(data, ref offset, 3.75f);
             offset = 1456;
-            WriteFloat(data, ref offset, 0.12f);
+            WriteFloat(data, ref offset, 0.22f);
             offset = 1460;
             WriteFloat(data, ref offset, 550.0f);
 

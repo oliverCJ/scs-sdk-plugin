@@ -47,15 +47,14 @@ Rev 13 appends a 15th extension zone after the trailer data in shared memory. Th
 New capabilities:
 
 - Common: `NextMandatoryBreak`, provided by the SDK channel `mandatory.break`.
-- Car jobs: `JobValues` now works as the unified active job object and can contain either freight job data or car job data. The native plug-in also mirrors car job data into the legacy job shared-memory fields, while `CarJobValues` is kept as a dedicated compatibility view for car job consumers.
+- Car jobs: `JobValues` is the only public active job object and can contain either freight job data or car job data. The native plug-in also mirrors car job data into the legacy job shared-memory fields. Car job remains an internal SDK data source and is not exposed as a separate public object.
 - Job type: `SpecialEventsValues.ActiveJobType` identifies the current task as `JobType.None`, `JobType.Freight`, or `JobType.Car` when `SpecialEventsValues.OnJob` is true.
-- Gameplay events: new `CarJobCancelled` and `CarJobDelivered` events, including `VehicleDamage`.
-- Special events: new `CarJobCancelled` and `CarJobDelivered` state flags.
+- Gameplay events: car job cancellation and delivery are exposed through the existing `JobCancelled` and `JobDelivered` events. `GamePlay.JobDelivered.VehicleDamage` contains the car job vehicle damage value.
 - `bus_job` is currently detected and logged as a warning, but is not exposed as a stable API because its field structure is not documented by the SDK.
 
-`JobValues` and `CarJobValues` are read in parallel. Existing freight jobs continue to be exposed through `JobValues`. When the SDK reports a car job, the plug-in mirrors all fields that have a legacy representation into the old job shared-memory area, and the C# client also copies the extension data into `JobValues`. Legacy clients can therefore continue to read the active job through the original job branch. `CarJobValues` remains available for callers that want a car-job-specific view.
+`JobValues` is the only public task data branch. Existing freight jobs continue to be exposed through `JobValues`. When the SDK reports a car job, the plug-in mirrors all fields that have a legacy representation into the old job shared-memory area, and the C# client copies the extension data into `JobValues`. The internal converter retains the car job source data only while translating the Rev 13 extension zone.
 
-Car job cancellation and delivery also toggle the legacy `JobCancelled`, `JobDelivered`, `OnJob`, and `JobFinished` flags. They are additionally available through the new car job-specific flags and events. A new client that subscribes to both old and new events may receive both notifications for the same car job.
+Car job cancellation and delivery toggle the existing `JobCancelled`, `JobDelivered`, `OnJob`, and `JobFinished` flags and trigger only the existing `JobCancelled` and `JobDelivered` events. This avoids duplicate notifications for a single car job.
 
 Use `SpecialEventsValues.OnJob` to determine whether a task is active, then use `SpecialEventsValues.ActiveJobType` to distinguish the unified `JobValues` branch:
 
@@ -347,30 +346,6 @@ New stuff is marked with the <ins>inserted</ins> Tag.
 │    │         ├── UnitCount (1.14/1.01/1.35)
 │    │         ├── UnitMass (1.14/1.01/1.35)
 │    │         └── CargoDamage (1.14/1.01/1.35)
-│    ├── <strong><ins>Car Job Values</ins> (1.20/1.07/1.61; dedicated compatibility view, also copied into Job Values)</strong>:
-│    │    ├── Delivery Time
-│    │    ├── CargoLoaded
-│    │    ├── CustomerPrioCargoHandling
-│    │    ├── CustomerPrioTime
-│    │    ├── CustomerPrioVehicleAppearance
-│    │    ├── Market
-│    │    ├── Planned Distance Km
-│    │    ├── City Destination Id (code)
-│    │    ├── City Destination
-│    │    ├── Company Destination Id (code)
-│    │    ├── Company Destination
-│    │    ├── City Source Id (code)
-│    │    ├── City Source
-│    │    ├── Company Source Id (code)
-│    │    ├── Company Source
-│    │    ├── Income
-│    │    └── <strong>Cargo Values</strong>:
-│    │         ├── Mass
-│    │         ├── Name
-│    │         ├── Id
-│    │         ├── UnitCount
-│    │         ├── UnitMass
-│    │         └── CargoDamage
 │    ├── <strong>Control Values</strong>:
 │    │    ├── <strong>User Input</strong>:
 │    │    │    ├── Steering
@@ -391,8 +366,6 @@ New stuff is marked with the <ins>inserted</ins> Tag.
 │    │    ├── <ins>ActiveJobType</ins> (None, Freight, or Car; Rev 13)
 │    │    ├── Job Cancelled (1.14/1.01/1.35; also toggled by car jobs in Rev 13)
 │    │    ├── Job Delivered (1.14/1.01/1.35; also toggled by car jobs in Rev 13)
-│    │    ├── <ins>Car Job Cancelled</ins> (1.20/1.07/1.61)
-│    │    ├── <ins>Car Job Delivered</ins> (1.20/1.07/1.61)
 │    │    ├── Fined (1.14/1.01/1.35)
 │    │    ├── Tollgate (1.14/1.01/1.35)
 │    │    ├── Ferry (1.14/1.01/1.35)
@@ -414,20 +387,7 @@ New stuff is marked with the <ins>inserted</ins> Tag.
 │         │    ├── AutoLoaded
 │         │    ├── AutoParked
 │         │    ├── CargoDamage
-│         │    ├── DeliveryTime
-│         │    ├── DistanceKm
-│         │    ├── EarnedXp
-│         │    └── Revenue
-│         ├── <strong><ins>CarJobCancelled</ins> (1.20/1.07/1.61)</strong>:
-│         │    ├── Started
-│         │    ├── Finished
-│         │    └── Penalty
-│         ├── <strong><ins>CarJobDelivered</ins> (1.20/1.07/1.61)</strong>:
-│         │    ├── Started
-│         │    ├── Finished
-│         │    ├── StartedBackup
-│         │    ├── CargoDamage
-│         │    ├── <ins>VehicleDamage</ins>
+│         │    ├── <ins>VehicleDamage</ins> (car jobs, 1.20/1.07/1.61)
 │         │    ├── DeliveryTime
 │         │    ├── DistanceKm
 │         │    ├── EarnedXp

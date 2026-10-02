@@ -15,8 +15,6 @@ namespace SCSSdkClient.Object {
             public Fined FinedEvent;
             public Cancelled JobCancelled;
             public Delivered JobDelivered;
-            public Cancelled CarJobCancelled;
-            public Delivered CarJobDelivered;
             public Tollgate TollgateEvent;
             public Transport TrainEvent;
             public Refuel RefuelEvent;
@@ -25,8 +23,6 @@ namespace SCSSdkClient.Object {
             public GamePlayEvents() {
                 JobCancelled = new Cancelled();
                 JobDelivered = new Delivered();
-                CarJobCancelled = new Cancelled();
-                CarJobDelivered = new Delivered();
                 FinedEvent = new Fined();
                 TollgateEvent = new Tollgate();
                 TrainEvent = new Transport();

@@ -25,8 +25,6 @@ namespace SCSSdkClient.Object {
 
             public bool JobCancelled { get; internal set; }
             public bool JobDelivered { get; internal set; }
-            public bool CarJobCancelled { get; internal set; }
-            public bool CarJobDelivered { get; internal set; }
             public bool Fined { get; internal set; }
             public bool Tollgate { get; internal set; }
             public bool Ferry { get; internal set; }

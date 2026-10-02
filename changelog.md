@@ -8,23 +8,20 @@ update to SDK Version 1.15
 
 - added support for the new SDK values for ETS2 telemetry 1.20 and ATS telemetry 1.07
 - added car job support
-  - `JobValues` is the unified active job branch for freight jobs and car jobs
-  - `CarJobValues` is available as a dedicated car job view
+  - `JobValues` is the only public active job branch for freight jobs and car jobs
   - car job values with a legacy representation are also written to the old job, gameplay and special event values for backwards compatibility
 - `SpecialEventsValues.OnJob` remains the value that indicates if a job is active
   - `SpecialEventsValues.ActiveJobType` is placed on the same level and only distinguishes the job type while `OnJob` is true
   - `ActiveJobType` is set to `None` when `OnJob` is false
-- car job cancelled and delivered events also update the legacy job cancelled, job delivered, on job and job finished values
+- car job cancellation and delivery use the existing `JobCancelled` and `JobDelivered` public events and update the legacy job cancelled, job delivered, on job and job finished values
 - `bus_job` is detected and logged, but is not exposed because its field structure is not documented by the SDK
 
 ### New Values
 
 - NextMandatoryBreak
 - car job values
-- car job cancelled and delivered gameplay events
-- car job cancelled and delivered special event values
 - ActiveJobType (`None`, `Freight` and `Car`)
-- VehicleDamage for car job delivered events
+- VehicleDamage for car job deliveries through `GamePlay.JobDelivered.VehicleDamage`
 
 ### Shared Memory Changes
 
